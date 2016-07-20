@@ -16,7 +16,7 @@
 package org.onosproject.routing.bgp;
 
 /**
- * BGP related constants.
+ * BGP related constants. BGP相关常量
  */
 public final class BgpConstants {
     /**

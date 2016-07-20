@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple implementation of the application ID registry using in-memory
- * structures.
+ * structures. 利用hashmap实现的模块儿ID管理接口类
  */
 @Component(immediate = true)
 @Service

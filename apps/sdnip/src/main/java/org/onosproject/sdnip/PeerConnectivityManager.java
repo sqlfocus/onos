@@ -68,6 +68,7 @@ public class PeerConnectivityManager {
     private static final Logger log = LoggerFactory.getLogger(
             PeerConnectivityManager.class);
 
+    /* BGP知名端口 */
     private static final short BGP_PORT = 179;
 
     private final IntentSynchronizationService intentSynchronizer;
@@ -77,13 +78,13 @@ public class PeerConnectivityManager {
     private final ApplicationId appId;
     private final ApplicationId routerAppId;
 
-    private final Map<Key, PointToPointIntent> peerIntents;
+    private final Map<Key, PointToPointIntent> peerIntents;         /* 已经建立的BGP连接流 */
 
     private final InternalNetworkConfigListener configListener
-            = new InternalNetworkConfigListener();
+            = new InternalNetworkConfigListener();                  /* 配置变化监听器 */
 
     private final InternalInterfaceListener interfaceListener
-            = new InternalInterfaceListener();
+            = new InternalInterfaceListener();                      /* 接口变化监听器 */
 
     /**
      * Creates a new PeerConnectivityManager.
@@ -112,8 +113,11 @@ public class PeerConnectivityManager {
      * Starts the peer connectivity manager.
      */
     public void start() {
+        /* 监听配置变更，监听接口连接 */
         configService.addListener(configListener);
         interfaceService.addListener(interfaceListener);
+
+        /* 建立BGP内部对等体之间的IBGP互连关系，建立与外部对等体之间的EBGP关系 */
         setUpConnectivity();
     }
 
@@ -130,6 +134,7 @@ public class PeerConnectivityManager {
      * BGP speakers and external BGP peers.
      */
     private void setUpConnectivity() {
+        /* 从配置文件获取本地的BGP配置 */
         BgpConfig config = configService.getConfig(routerAppId, RoutingService.CONFIG_CLASS);
 
         Set<BgpConfig.BgpSpeakerConfig> bgpSpeakers;
@@ -143,6 +148,7 @@ public class PeerConnectivityManager {
 
         Map<Key, PointToPointIntent> existingIntents = new HashMap<>(peerIntents);
 
+        /* 遍历BGP配置，建立对等连接；当然，已经建立的连接，不需再重新建立 */
         for (BgpConfig.BgpSpeakerConfig bgpSpeaker : bgpSpeakers) {
             log.debug("Start to set up BGP paths for BGP speaker: {}",
                     bgpSpeaker);
@@ -151,6 +157,7 @@ public class PeerConnectivityManager {
                 PointToPointIntent intent = existingIntents.remove(i.key());
                 if (intent == null || !IntentUtils.intentsAreEqual(i, intent)) {
                     peerIntents.put(i.key(), i);
+                    /* 调用流管理下发刘表到对应的交换机，以建立BGP对等体之间的连接 */
                     intentSynchronizer.submit(i);
                 }
             });
@@ -158,6 +165,7 @@ public class PeerConnectivityManager {
 
         // Remove any remaining intents that we used to have that we don't need
         // anymore
+        /* 已经建立的连接，在新配置文件中没有，则去除 */
         existingIntents.values().forEach(i -> {
             peerIntents.remove(i.key());
             intentSynchronizer.withdraw(i);

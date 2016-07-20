@@ -50,6 +50,7 @@ public class SimpleIntentStore
 
     private final Logger log = getLogger(getClass());
 
+    /* 意图队列，分别为当前和待整合队列 */
     private final Map<Key, IntentData> current = Maps.newConcurrentMap();
     private final Map<Key, IntentData> pending = Maps.newConcurrentMap();
 
@@ -158,7 +159,7 @@ public class SimpleIntentStore
         if (data.version() == null) { // recompiled intents will already have a version
             data = new IntentData(data.intent(), data.state(), new SystemClockTimestamp());
         }
-        synchronized (this) {
+        synchronized (this) {           /* <note>锁保护， 加入待执行独列pending */
             IntentData existingData = pending.get(data.key());
             if (existingData == null ||
                     // existing version is strictly less than data's version

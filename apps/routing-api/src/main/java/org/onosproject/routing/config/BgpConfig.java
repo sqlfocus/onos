@@ -218,7 +218,7 @@ public class BgpConfig extends Config<ApplicationId> {
 
 
     /**
-     * Configuration for a BGP speaker.
+     * Configuration for a BGP speaker.  BGP路由器信息
      */
     public static class BgpSpeakerConfig {
 

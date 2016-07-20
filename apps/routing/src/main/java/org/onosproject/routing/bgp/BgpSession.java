@@ -42,18 +42,20 @@ import java.util.concurrent.TimeUnit;
 /**
  * Class for handling the BGP peer sessions.
  * There is one instance per each BGP peer session.
+ *
+ * BGP会话类，每个BGP会话对应一个类
  */
 public class BgpSession extends SimpleChannelHandler {
     private static final Logger log =
         LoggerFactory.getLogger(BgpSession.class);
 
-    private final BgpSessionManager bgpSessionManager;
+    private final BgpSessionManager bgpSessionManager;  /* 聚合的方式集成BGP会话管理类 */
 
     // Local flag to indicate the session is closed.
     // It is used to avoid the Netty's asynchronous closing of a channel.
     private boolean isClosed = false;
 
-    // BGP session info: local and remote
+    // BGP session info: local and remote，本地和远端的会话信息
     private final BgpSessionInfo localInfo;     // BGP session local info
     private final BgpSessionInfo remoteInfo;    // BGP session remote info
 
@@ -78,7 +80,7 @@ public class BgpSession extends SimpleChannelHandler {
         this.localInfo = new BgpSessionInfo();
         this.remoteInfo = new BgpSessionInfo();
 
-        // NOTE: We support only BGP4
+        // NOTE: We support only BGP4，<TAKE CARE!!!>仅支持BGP4!!!
         this.localInfo.setBgpVersion(BgpConstants.BGP_VERSION);
     }
 
@@ -254,8 +256,8 @@ public class BgpSession extends SimpleChannelHandler {
      * @param ctx the Channel Handler Context
      */
     void closeSession(ChannelHandlerContext ctx) {
-        timer.stop();
-        closeChannel(ctx);
+        timer.stop();               /* 关停定时器 */
+        closeChannel(ctx);          /* 关停TCP监听链路管道 */
     }
 
     /**

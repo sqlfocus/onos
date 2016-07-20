@@ -66,6 +66,7 @@ public class CoreManager implements CoreService {
     private static final File VERSION_FILE = new File("../VERSION");
     private static Version version = Version.version("1.7.0-SNAPSHOT");
 
+    /* 盛放注册到核心层的模块儿 */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected ApplicationIdStore applicationIdStore;
 

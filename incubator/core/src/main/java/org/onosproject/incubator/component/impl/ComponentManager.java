@@ -53,7 +53,7 @@ public class ComponentManager implements ComponentService {
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected ScrService scrService;
 
-    private Set<String> components;
+    private Set<String> components;     /* 已添加的模块儿集合 */
 
     private ScheduledExecutorService executor;
 
@@ -79,8 +79,8 @@ public class ComponentManager implements ComponentService {
 
     @Override
     public void activate(ApplicationId appId, String name) {
-        components.add(name);
-        enableComponent(name);
+        components.add(name);           /* 添加到模块儿集合 */
+        enableComponent(name);          /* 使能模块儿 */
     }
 
     @Override
@@ -100,7 +100,7 @@ public class ComponentManager implements ComponentService {
 
         if (component.getState() == org.apache.felix.scr.Component.STATE_DISABLED) {
             log.info("Enabling component {}", name);
-            component.enable();
+            componentle();
         }
     }
 

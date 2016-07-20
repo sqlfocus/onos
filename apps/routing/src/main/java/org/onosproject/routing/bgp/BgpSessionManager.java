@@ -54,7 +54,7 @@ import static java.util.concurrent.Executors.newCachedThreadPool;
 import static org.onlab.util.Tools.groupedThreads;
 
 /**
- * BGP Session Manager class.
+ * BGP Session Manager class. BGP的会话管理类
  */
 @Component(immediate = true, enabled = false)
 @Service
@@ -80,12 +80,13 @@ public class BgpSessionManager implements BgpInfoService {
             new ConcurrentHashMap<>();
 
     private static final int DEFAULT_BGP_PORT = 2000;
-    private int bgpPort;
+    private int bgpPort;                /* BGP端口号，用来建立监听BGP连接的tcp端口；
+                                            <note>此处没有使用标准的179端口，因为程序的运行权限非root */
 
     @Activate
     protected void activate(ComponentContext context) {
-        readComponentConfiguration(context);
-        start();
+        readComponentConfiguration(context);        /* 从运行环境获取BGP的端口号，无则使用默认值2000 */
+        start();                                    /* 启动会话管理 */
         log.info("BgpSessionManager started");
     }
 
@@ -308,9 +309,12 @@ public class BgpSessionManager implements BgpInfoService {
         log.debug("BGP Session Manager start.");
         isShutdown = false;
 
+        /* 利用netty框架实现socket */
         ChannelFactory channelFactory = new NioServerSocketChannelFactory(
                 newCachedThreadPool(groupedThreads("onos/bgp", "sm-boss-%d")),
                 newCachedThreadPool(groupedThreads("onos/bgp", "sm-worker-%d")));
+        /* 注册报文处理类的处理类层次，BgpFrameDecoder ---> BgpSession ---> BgpSessionManager
+         * 其中，BgpFrameDecoder用于BGP报文的收发及解码；BgpSession用于记录BGP会话信息；而本类则操控会话 */
         ChannelPipelineFactory pipelineFactory = () -> {
             // Allocate a new session per connection
             BgpSession bgpSessionHandler =
@@ -324,9 +328,11 @@ public class BgpSessionManager implements BgpInfoService {
             pipeline.addLast("BgpSession", bgpSessionHandler);
             return pipeline;
         };
+        /* 初始化BGP的tcp监听地址，默认值为any:2000 */
         InetSocketAddress listenAddress =
                 new InetSocketAddress(bgpPort);
 
+        /* 建立监听的tcp链路 */
         serverBootstrap = new ServerBootstrap(channelFactory);
         // serverBootstrap.setOptions("reuseAddr", true);
         serverBootstrap.setOption("child.keepAlive", true);

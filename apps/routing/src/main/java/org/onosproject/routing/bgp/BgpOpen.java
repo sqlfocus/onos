@@ -70,6 +70,7 @@ final class BgpOpen {
         // Parse the OPEN message
         //
         // Remote BGP version
+        /* 匹配BGP版本号,<TAKE CARE!!!>必须为BGP4 */
         int remoteBgpVersion = message.readUnsignedByte();
         if (remoteBgpVersion != BgpConstants.BGP_VERSION) {
             log.debug("BGP RX OPEN Error from {}: " +
@@ -91,9 +92,11 @@ final class BgpOpen {
             bgpSession.closeSession(ctx);
             return;
         }
+        /* 保存到BGP会话信息类 */
         bgpSession.remoteInfo().setBgpVersion(remoteBgpVersion);
 
         // Remote AS number
+        /* 读取并保存远端的AS号 */
         long remoteAs = message.readUnsignedShort();
         bgpSession.remoteInfo().setAsNumber(remoteAs);
         //
@@ -102,9 +105,12 @@ final class BgpOpen {
         // In the future, the local AS number should be configured as part
         // of an explicit BGP peering configuration.
         //
+        /* <TODO>此处的逻辑，难道支持iBGP??? */
         bgpSession.localInfo().setAsNumber(remoteAs);
 
         // Remote Hold Time
+        /* 读取并设置保持时间，<TAKE CARE!!!>最小保持时间不能小于3秒
+         * <note>当前实现，本地保持时间和远端保持一致 */
         long remoteHoldtime = message.readUnsignedShort();
         if ((remoteHoldtime != 0) &&
             (remoteHoldtime < BgpConstants.BGP_KEEPALIVE_MIN_HOLDTIME)) {
@@ -136,11 +142,13 @@ final class BgpOpen {
         bgpSession.localInfo().setHoldtime(remoteHoldtime);
 
         // Remote BGP Identifier
+        /* 获取远端BGP标识，<TAKE CARE!!!>仅支持IPv4地址 */
         Ip4Address remoteBgpId =
             Ip4Address.valueOf((int) message.readUnsignedInt());
         bgpSession.remoteInfo().setBgpId(remoteBgpId);
 
         // Parse the Optional Parameters
+        /* 解析可选项部分 */
         try {
             parseOptionalParameters(bgpSession, ctx, message);
         } catch (BgpMessage.BgpParseException e) {
@@ -166,6 +174,9 @@ final class BgpOpen {
         // NOTE: Prepare the BGP OPEN message before the original local AS
         // is overwritten by the 4-octet AS number
         //
+        /* 准备BGP OPEN消息，被动打开
+         * <TODO>bgpid是否赋值了???
+         * <TODO>as号是否赋值了??? */
         ChannelBuffer txOpenMessage = prepareBgpOpen(bgpSession.localInfo());
 
         //
@@ -216,15 +227,18 @@ final class BgpOpen {
                   bgpSession.remoteInfo().holdtime());
 
         // Send my OPEN followed by KEEPALIVE
+        /* 发送OPEN消息 */
         ctx.getChannel().write(txOpenMessage);
-        //
+        /* 紧跟着发送KEEPALIVE消息 */
         ChannelBuffer txMessage = BgpKeepalive.prepareBgpKeepalive();
         ctx.getChannel().write(txMessage);
 
         // Start the KEEPALIVE timer
+        /* 启动保活定时器，利用设置的保活时间或holdtime/keepalive_per_holdtime */
         bgpSession.restartKeepaliveTimer(ctx);
 
         // Start the Session Timeout timer
+        /* 启动会话超时定时器，利用holdtime */
         bgpSession.restartSessionTimeoutTimer(ctx);
     }
 

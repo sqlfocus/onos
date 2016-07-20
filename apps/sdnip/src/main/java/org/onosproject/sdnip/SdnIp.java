@@ -57,12 +57,16 @@ public class SdnIp {
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected InterfaceService interfaceService;
 
+    /* 流同步器：集群模式时，节点信息暂时发送到此同步器，后续由集群leader提交变更；
+     *           非集群模式，由本节点直接提交变更
+     * <NOTE>相当于多了一个中间层， 不过拓展性更好了！ */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected IntentSynchronizationService intentSynchronizer;
 
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected IntentSynchronizationAdminService intentSynchronizerAdmin;
 
+    /* OSGI框架的模块儿管理类 */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected ComponentService componentService;
 
@@ -70,9 +74,10 @@ public class SdnIp {
 
     private ApplicationId appId;
 
+    /* 关联的模块儿，用来和BGP协议的实现模块儿通信 */
     private static List<String> components = new ArrayList<>();
     static {
-        components.add("org.onosproject.routing.bgp.BgpSessionManager");
+        components.add("org.onosproject.routing.bgp.BgpSessionManager");    /* BGP的会话管理类，用来管理BGP tcp连接 */
         components.add(org.onosproject.sdnip.SdnIpFib.class.getName());
     }
 
@@ -80,8 +85,10 @@ public class SdnIp {
     protected void activate() {
         components.forEach(name -> componentService.activate(appId, name));
 
+        /* 注册本模块儿到核心服务层 */
         appId = coreService.registerApplication(SDN_IP_APP);
 
+        /* 启动BGP对等关系链接监听 */
         peerConnectivity = new PeerConnectivityManager(appId,
                                                        intentSynchronizer,
                                                        networkConfigService,
@@ -89,6 +96,7 @@ public class SdnIp {
                                                        interfaceService);
         peerConnectivity.start();
 
+        /* 注册清除intent接口 */
         applicationService.registerDeactivateHook(appId, () -> {
             intentSynchronizer.removeIntentsByAppId(appId);
         });

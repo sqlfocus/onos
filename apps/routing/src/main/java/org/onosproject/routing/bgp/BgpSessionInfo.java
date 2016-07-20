@@ -29,7 +29,7 @@ import java.net.SocketAddress;
 public class BgpSessionInfo {
     private SocketAddress address;              // IP addr/port
     private Ip4Address ip4Address;              // IPv4 address
-    private int bgpVersion;                     // 1 octet
+    private int bgpVersion;                     // BGP版本号，目前仅支持BGP4，1 octet
     private long asNumber;                      // AS number: 2 octets
     private long as4Number;                     // AS4 number: 4 octets
     private long holdtime;                      // 2 octets

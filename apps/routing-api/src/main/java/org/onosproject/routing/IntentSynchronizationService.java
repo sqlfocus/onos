@@ -23,6 +23,9 @@ import org.onosproject.net.intent.Intent;
  * Submits and withdraws intents to the IntentService from a single point in
  * the cluster at any one time. The provided intents will be synchronized with
  * the IntentService on leadership change.
+ *
+ * 流同步器管理接口，下发意图/flow等到同步器；后续由集群的leader做配置下发（如果本节点
+ * 为leader，则直接submit）
  */
 public interface IntentSynchronizationService {
 

@@ -19,7 +19,7 @@ package org.onosproject.core;
 import java.util.Set;
 
 /**
- * Manages application IDs.
+ * Manages application IDs. 核心层利用此接口操控注册的模块儿
  */
 public interface ApplicationIdStore {
 

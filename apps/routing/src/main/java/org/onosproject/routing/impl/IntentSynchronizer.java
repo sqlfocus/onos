@@ -52,6 +52,8 @@ import static org.onlab.util.Tools.groupedThreads;
 
 /**
  * Synchronizes intents between an in-memory intent store and the IntentService.
+ *
+ * 实现流/intent同步器的功能的类
  */
 @Service
 @Component(immediate = false)
@@ -71,6 +73,7 @@ public class IntentSynchronizer implements IntentSynchronizationService,
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected ClusterService clusterService;
 
+    /* 流/intent的管理服务接口 */
     @Reference(cardinality = ReferenceCardinality.MANDATORY_UNARY)
     protected IntentService intentService;
 
@@ -80,6 +83,7 @@ public class IntentSynchronizer implements IntentSynchronizationService,
     private final InternalLeadershipListener leadershipEventListener =
             new InternalLeadershipListener();
 
+    /* 暂存所有的流/意图 */
     private final Map<Key, Intent> intents = new ConcurrentHashMap<>();
 
     private ExecutorService intentsSynchronizerExecutor;
@@ -167,8 +171,8 @@ public class IntentSynchronizer implements IntentSynchronizationService,
     @Override
     public void submit(Intent intent) {
         synchronized (this) {
-            intents.put(intent.key(), intent);
-            if (isElectedLeader && isActivatedLeader) {
+            intents.put(intent.key(), intent);                  /* 存放到本地 */
+            if (isElectedLeader && isActivatedLeader) {         /* 如果为leader，则直接提交 */
                 log.trace("Submitting intent: {}", intent);
                 intentService.submit(intent);
             }

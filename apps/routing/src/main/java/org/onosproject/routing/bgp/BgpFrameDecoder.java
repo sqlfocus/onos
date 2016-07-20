@@ -30,7 +30,7 @@ class BgpFrameDecoder extends FrameDecoder {
     private static final Logger log =
         LoggerFactory.getLogger(BgpFrameDecoder.class);
 
-    private final BgpSession bgpSession;
+    private final BgpSession bgpSession;    /* 通过聚合的方式集成BGP的会话信息类 */
 
     /**
      * Constructor for a given BGP Session.
@@ -75,6 +75,8 @@ class BgpFrameDecoder extends FrameDecoder {
         // Read and check the BGP message Marker field: it must be all ones
         // (See RFC 4271, Section 4.1)
         //
+        /* 处理BGP header marker，参考《BGP协议概述.pptx》
+         * <note>参考p12 rfc4271，此字段全部为1 */
         byte[] marker = new byte[BgpConstants.BGP_HEADER_MARKER_LENGTH];
         buf.readBytes(marker);
         for (int i = 0; i < marker.length; i++) {
@@ -101,6 +103,8 @@ class BgpFrameDecoder extends FrameDecoder {
         //
         // Read and check the BGP message Length field
         //
+        /* 处理BGP header length, BGP报文长度(包括头部)
+         * <TAKE CARE!!!>本程序支持的BGP报文长度不能大于4096 */
         int length = buf.readUnsignedShort();
         if ((length < BgpConstants.BGP_HEADER_LENGTH) ||
             (length > BgpConstants.BGP_MESSAGE_MAX_LENGTH)) {
@@ -125,6 +129,7 @@ class BgpFrameDecoder extends FrameDecoder {
         // So far we have read the Marker (16 octets) and the
         // Length (2 octets) fields.
         //
+        /* 不完整报文直接丢弃，<TAKE CARE!!!>谁来保证完整报文??? */
         int remainingMessageLen =
             length - BgpConstants.BGP_HEADER_MARKER_LENGTH - 2;
         if (buf.readableBytes() < remainingMessageLen) {
@@ -136,6 +141,7 @@ class BgpFrameDecoder extends FrameDecoder {
         //
         // Read the BGP message Type field, and process based on that type
         //
+        /* 读取BGP类型字段 */
         int type = buf.readUnsignedByte();
         remainingMessageLen--;      // Adjust after reading the type
         ChannelBuffer message = buf.readBytes(remainingMessageLen);
@@ -143,6 +149,7 @@ class BgpFrameDecoder extends FrameDecoder {
         //
         // Process the remaining of the message based on the message type
         //
+        /* 依据类型分流处理，仅支持RFC规定的四类消息 */
         switch (type) {
         case BgpConstants.BGP_TYPE_OPEN:
             BgpOpen.processBgpOpen(bgpSession, ctx, message);
