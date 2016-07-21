@@ -77,6 +77,8 @@ final class BgpNotification {
         // NOTE: If the peer sent a NOTIFICATION, we leave it to the peer to
         // close the connection.
         //
+        /* <TAKE CARE!!!>此处仅仅记录日志，没有其他动作；因为是对端发送的错误通知，因此
+         * 依赖对端主动关闭BGP对等体链接 */
 
         // Start the Session Timeout timer
         bgpSession.restartSessionTimeoutTimer(ctx);
