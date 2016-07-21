@@ -60,6 +60,7 @@ class BgpFrameDecoder extends FrameDecoder {
                   buf.readableBytes());
 
         // Test for minimum length of the BGP message
+        /* <TODO>整个报文是一次性读取进来的？ TCP如何区分报文边界？ */
         if (buf.readableBytes() < BgpConstants.BGP_HEADER_LENGTH) {
             // No enough data received
             return null;

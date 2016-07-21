@@ -236,6 +236,7 @@ public class BgpSessionManager implements BgpInfoService {
         // If the first connection, set my BGP ID to the local address
         // of the socket.
         //
+        /* <TAKE CARE!!!>利用第一个BGP tcp连接的本地地址作为自身的BGP ID */
         if (bgpSession.localInfo().address() instanceof InetSocketAddress) {
             InetAddress inetAddr =
                 ((InetSocketAddress) bgpSession.localInfo().address()).getAddress();

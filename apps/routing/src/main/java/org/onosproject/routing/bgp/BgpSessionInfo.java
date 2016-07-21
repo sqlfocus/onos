@@ -29,10 +29,23 @@ import java.net.SocketAddress;
 public class BgpSessionInfo {
     private SocketAddress address;              // IP addr/port
     private Ip4Address ip4Address;              // IPv4 address
-    private int bgpVersion;                     // BGP版本号，目前仅支持BGP4，1 octet
+    private int bgpVersion;                     // BGP版本号，<TAKE CARE!!!>目前仅支持BGP4，1 octet
+    /* <TAKE CARE!!!>as号是否赋值了???解析头部时已经赋值，不过直接利用的远端AS号，并没有读取配置文件
+     * <TODO>这预示着目前ONOS只能建立iBGP对等关系??? */
     private long asNumber;                      // AS number: 2 octets
     private long as4Number;                     // AS4 number: 4 octets
     private long holdtime;                      // 2 octets
+    /**
+     * <TAKE CARE!!!>bgpid是否赋值了??? 没发现赋值的地方
+     *     赋值流程如下：
+     *          BgpSessionManager.start() --->  new NioServerSocketChannelFactory()
+     *          ---> BgpSession.channelConnected() ---> BgpSession.localInfo.setBgpId(bgpSessionManager.getMyBgpId())
+     *     对应的源bgpSessionManager.myBgpId的赋值流程为：
+     *          BgpSession.channelConnected() ---> BgpSessionManager.peerConnected()
+     *          ---> BgpSessionManager.updateMyBgpId()
+     *
+     *     总结起来，利用第一个iBGP对等连接的TCP链路的本地IP地址作为BGP ID。
+     */
     private Ip4Address bgpId;                   // 4 octets -> IPv4 address
     private boolean mpExtensions;               // Multiprotocol Extensions
                                                 // enabled: RFC 4760

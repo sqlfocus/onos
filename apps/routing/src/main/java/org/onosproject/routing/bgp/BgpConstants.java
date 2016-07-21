@@ -101,6 +101,29 @@ public final class BgpConstants {
         /**
          * BGP OPEN: Capabilities related constants (RFC 5492).
          */
+        /* RFC3392/5492定义了可协商参数
+         *     设计初衷： rfc4271规定，BGP speaker如果在OPEN消息中遇到不认知的可选参数，那BGP speaker必须
+         *               关闭对等连接；此行为使得引入新特性变得异常复杂；因此，本rfc引入了能力协商选项，允许
+         *               BGP speaker在OPEN消息中协商双方的能力，仅双发都支持的能力才能被认可，其他的(包括
+         *               不认知的)都被忽略。
+         *     交互流程： 支持某特性的BGP speaker发送OPEN信息时，可能携带此可选项；
+         *               接收方，逐一检测选项列表特性，可得知对端支持的可选特性；
+         *               当得知对方支持某特性后，如果本地也支持，则后续通信可采用此特性；
+         *               如果双方任何一方不支持某特性，则后续通信不能采用此特性；
+         *
+         *               如果接收方不支持此协商特性，发送方会接收到NOTIFY信息，以提示不认知的属性信息；为
+         *               继续建立对等体关系，发送方必须重新发送OPEN消息，并且抛弃协商参数。
+         *
+         *               如果BGP speaker发现对端不支持自身的某些必须特性，可以发送NOTIFY信息，以断开连接；
+         *               并且后续不再试图自动重新建立对等体连接。
+         *
+         *               如果BGP speaker收到了不支持的协商特性，它必须忽略此特性；而不是断开连接
+         *
+         *     可协商参数类型为2
+         *               1) 一般后续跟随1个或多个特性
+         *               2) 一般只有一个可协商参数
+         *               3) 但也要做好兼容老协议的准备，多个参数，每个参数1个或多个特性
+         */
         public static final class Capabilities {
             /** BGP OPEN Optional Parameter Type: Capabilities. */
             public static final int TYPE = 2;
@@ -110,6 +133,72 @@ public final class BgpConstants {
 
             /**
              * BGP OPEN: Multiprotocol Extensions Capabilities (RFC 4760).
+             */
+            /* RFC4760定义了此特性： 此属性用于拓展BGP-4，使得其可以携带multiple Network Layer protocols
+             * (e.g., IPv6, IPX, L3VPN, etc.)等路由信息； 此属性为后向兼容，支持此特性的BGP speaker
+             * 可以和不支持此特性的BGP spearker建立对等体关系
+             *
+             * BGP-4中，带有IPv4特性的三个属性为：
+             *      NEXT_HOP
+             *      AGGREGATOR
+             *      NLRI
+             * 相关的RFC假设BGP speaker必须拥有一个IPv4地址，以标识特定属性，如AGGREGATOR；因此，支持MNLP
+             * 只需要在现有BGP-4中添加两点：
+             *     1) the ability to associate a particular Network Layer protocol with the next hop information
+             *     2) the ability to associate a particular Network Layer protocol with NLRI
+             *
+             * 另外，下一跳信息一般是和建议的可达地址关联的，而和非可达地址没有关联；因此，应该把下一跳信息和建议可达地址组合
+             * 起来对待，而分开建议可达信息与非可达信息。
+             *
+             * 为了后向兼容，并且简化引入multiprotocol能力的过程，此RFC建议添加两种新属性：
+             *     1) Multiprotocol Reachable NLRI(MP_REACH_NLRI)： 携带建议可达信息及下一跳信息
+             *     2) Multiprotocol Unreachable NLRI (MP_UNREACH_NLRI)：携带建议不可达信息
+             * 这两个属性均为“可选非传递属性”（optional and non-transitive），不支持这些属性的BGP speaker将忽略此属性，
+             * 并且不传递出去。
+             *
+             * 属性MP_REACH_NLRI格式如下：
+             * +---------------------------------------------------------+
+             * | Address Family Identifier (2 octets) |
+             * +---------------------------------------------------------+
+             * | Subsequent Address Family Identifier (1 octet) |
+             * +---------------------------------------------------------+
+             * | Length of Next Hop Network Address (1 octet) |
+             * +---------------------------------------------------------+
+             * | Network Address of Next Hop (variable) |
+             * +---------------------------------------------------------+
+             * | Reserved (1 octet) |
+             * +---------------------------------------------------------+
+             * | Network Layer Reachability Information (variable) |
+             * +---------------------------------------------------------+
+             *
+             * 属性MP_UNREACH_NLRI格式如下：
+             * +---------------------------------------------------------+
+             * | Address Family Identifier (2 octets) |
+             * +---------------------------------------------------------+
+             * | Subsequent Address Family Identifier (1 octet) |
+             * +---------------------------------------------------------+
+             * | Withdrawn Routes (variable) |
+             * +---------------------------------------------------------+
+             *
+             * Network Layer Reachability information如下编码：
+             * +---------------------------+
+             * | Length (1 octet) |
+             * +---------------------------+
+             * | Prefix (variable) |
+             * +---------------------------+
+             *
+             * Subsequent Address Family Identifier：
+             *     1 - Network Layer Reachability Information used for unicast forwarding
+             *     2 - Network Layer Reachability Information used for multicast forwarding
+             *
+             * 在OPEN消息中协商这些属性的Capabilities Optional Parameter属性列表格式为：
+             * 0       7       15     23      31
+             * +-------+-------+-------+-------+
+             * |    AFI      | Res.    | SAFI |
+             * +-------+-------+-------+-------+
+             *      AFI  - Address Family Identifier（16bit）
+             *      Res. - Reserved (8 bit) field
+             *      SAFI - Subsequent Address Family Identifier (8 bit)
              */
             public static final class MultiprotocolExtensions {
                 /** BGP OPEN Multiprotocol Extensions code. */
@@ -133,6 +222,32 @@ public final class BgpConstants {
 
             /**
              * BGP OPEN: Support for 4-octet AS Number Capability (RFC 6793).
+             */
+            /**
+             * BGP-4中的AS号是16bit位的；RFC6793介绍了一种拓展属性，使得AS号可以利用32bit位表示；
+             * 目的是防止AS号迅速耗尽。
+             *
+             * 需要携带AS号的属性包括：
+             *      OPEN消息的"My Autonomous System" field
+             *      UPDATE消息的AS_PATH + AGGREGATOR属性字段
+             *      BGP Communities属性
+             *
+             * 本RFC通过在OPEN消息中的Capabilities Optional Parameter参数的属性列表中协商是否支持此能力
+             *      code: 65
+             *
+             * 支持此能力后，将引入了两个新属性(可选传递属性，optional transitive)，来传递4字节的AS号：
+             *      AS4_PATH            ===     拓展原AS_PATH              ===     17
+             *      AS4_AGGREGATOR      ===     拓展原AS_AGGREGATOR        ===     18
+             *
+             * 当前，被配置赋值的2字节AS号通过设置高2字节为0转换为4字节的AS号；此4字节的AS号称为be mappable to
+             * a two-octet AS number；
+             *
+             * AS_TRANS：当4字节的AS号不能转换为2字节时，本RFC预留了一个2字节的AS号来表示这种情况，称为AS_TRANS(23456）;
+             *           以便利用它编码必须使用2字节AS号的地方，如OPEN消息的"My Autonomous System" field
+             *
+             * <NOTE>
+             *     1) 协商支持此能力后，AS号必须使用能力协商值，替换掉记录下来的OPEN消息中的"My Autonomous System" field
+             *     2) 都支持此能力的BGP speaker之间，在UPDATE消息中必须使用AS_PATH/AS_AGGREGATOR传递，而不是AS4_PATH/AS4_AGGREGATOR
              */
             public static final class As4Octet {
                 /** BGP OPEN Support for 4-octet AS Number Capability code. */

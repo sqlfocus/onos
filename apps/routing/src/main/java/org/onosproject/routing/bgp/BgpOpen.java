@@ -38,7 +38,7 @@ final class BgpOpen {
     }
 
     /**
-     * Processes BGP OPEN message.
+     * Processes BGP OPEN message. 处理BGP OPEN消息的类
      *
      * @param bgpSession the BGP Session to use
      * @param ctx the Channel Handler Context
@@ -104,8 +104,10 @@ final class BgpOpen {
         // This is done, because the peer setup is always iBGP.
         // In the future, the local AS number should be configured as part
         // of an explicit BGP peering configuration.
-        //
-        /* <TODO>此处的逻辑，难道支持iBGP??? */
+        /* 当前，本地AS号总是设置为远端AS号，因为建立的对等关系基本上为iBGP为主；未来
+         * 本地的AS号应该可以通过BGP配置显式设置
+         */
+        /* <TODO>此处的逻辑，难道天然支持iBGP组网，而不是wiki上说的eBGP??? */
         bgpSession.localInfo().setAsNumber(remoteAs);
 
         // Remote Hold Time
@@ -139,6 +141,7 @@ final class BgpOpen {
         // In the future, the local BGP Holdtime should be configured as part
         // of an explicit BGP peering configuration.
         //
+        /* 当前，本地的保持时间一般设置为远端的保持时间；后续支持通过配置文件显式设置 */
         bgpSession.localInfo().setHoldtime(remoteHoldtime);
 
         // Remote BGP Identifier
@@ -174,15 +177,14 @@ final class BgpOpen {
         // NOTE: Prepare the BGP OPEN message before the original local AS
         // is overwritten by the 4-octet AS number
         //
-        /* 准备BGP OPEN消息，被动打开
-         * <TODO>bgpid是否赋值了???
-         * <TODO>as号是否赋值了??? */
+        /* 准备BGP OPEN消息，被动打开 */
         ChannelBuffer txOpenMessage = prepareBgpOpen(bgpSession.localInfo());
 
         //
         // Use the 4-octet AS number in lieu of the "My AS" field
         // See RFC 6793, Section 4.1, second paragraph.
         //
+        /* 如果支持AS号4字节拓展属性，则利用远端的4字节AS号代替OPEN消息头中的2字节AS号 */
         if (bgpSession.remoteInfo().as4OctetCapability()) {
             long as4Number = bgpSession.remoteInfo().as4Number();
             bgpSession.remoteInfo().setAsNumber(as4Number);
@@ -194,6 +196,7 @@ final class BgpOpen {
         // NOTE: This check applies only for our use-case where all BGP
         // sessions are iBGP.
         //
+        /* <TAKE CARE!!!>当前仅建立iBGP对等体关系，因此要求所有的对等体AS号必须一致 */
         for (BgpSession bs : bgpSession.getBgpSessionManager().getBgpSessions()) {
             if ((bs.remoteInfo().asNumber() != 0) &&
                 (bgpSession.remoteInfo().asNumber() !=
@@ -229,7 +232,7 @@ final class BgpOpen {
         // Send my OPEN followed by KEEPALIVE
         /* 发送OPEN消息 */
         ctx.getChannel().write(txOpenMessage);
-        /* 紧跟着发送KEEPALIVE消息 */
+        /* 按照rfc4271，收到OPEN消息后，协商成功后，(紧跟着)发送KEEPALIVE消息 */
         ChannelBuffer txMessage = BgpKeepalive.prepareBgpKeepalive();
         ctx.getChannel().write(txMessage);
 
@@ -255,12 +258,14 @@ final class BgpOpen {
         //
         // Prepare the OPEN message payload
         //
+        /* 生成OPEN消息头，<TODO>此时bgpid还没有被赋值??? */
         message.writeByte(localInfo.bgpVersion());
         message.writeShort((int) localInfo.asNumber());
         message.writeShort((int) localInfo.holdtime());
         message.writeInt(localInfo.bgpId().toInt());
 
         // Prepare the optional BGP Capabilities
+        /* 生成能力协商参数，<NOTE>实质为支持的远端能力参数属性列表 */
         ChannelBuffer capabilitiesMessage =
             prepareBgpOpenCapabilities(localInfo);
         message.writeByte(capabilitiesMessage.readableBytes());
@@ -301,6 +306,8 @@ final class BgpOpen {
         //
         // Parse the Optional Parameters
         //
+        /* 读取所有的可选参数，新RFC规定只能有一个；
+         * 不过老版本支持多个，此处仅有一个while循环，<NOTE>不兼容老版本实现 */
         int optParamEnd = message.readerIndex() + optParamLength;
         while (message.readerIndex() < optParamEnd) {
             int paramType = message.readUnsignedByte();
@@ -322,6 +329,7 @@ final class BgpOpen {
             switch (paramType) {
             case BgpConstants.Open.Capabilities.TYPE:
                 // Optional Parameter Type: Capabilities
+                /* 协商能力参数，后边跟着自身支持的属性列表 */
                 if (paramLen < BgpConstants.Open.Capabilities.MIN_LENGTH) {
                     // ERROR: Malformed Param Type
                     String errorMsg = "Malformed Capabilities Optional "
@@ -330,6 +338,7 @@ final class BgpOpen {
                 }
                 int paramEnd = message.readerIndex() + paramLen;
                 // Parse Capabilities
+                /* 遍历能力参数的属性列表 */
                 while (message.readerIndex() < paramEnd) {
                     if (paramEnd - message.readerIndex() <
                             BgpConstants.Open.Capabilities.MIN_LENGTH) {
@@ -345,9 +354,11 @@ final class BgpOpen {
                         throw new BgpMessage.BgpParseException(errorMsg);
                     }
 
+                    /* 解析协商参数的属性列表 */
                     switch (capabCode) {
                     case BgpConstants.Open.Capabilities.MultiprotocolExtensions.CODE:
                         // Multiprotocol Extensions Capabilities (RFC 4760)
+                        /* 多协议支持，比如IPv6 */
                         if (capabLen != BgpConstants.Open.Capabilities.MultiprotocolExtensions.LENGTH) {
                             // ERROR: Multiprotocol Extension Length Error
                             String errorMsg = "Multiprotocol Extension Length Error";
@@ -364,7 +375,7 @@ final class BgpOpen {
                         //
                         // NOTE: For now we just copy the remote AFI/SAFI setting
                         // to the local configuration.
-                        //
+                        ///* 利用远端的AFI/SAFI特性填充本地数据结构 */
                         if (afi == BgpConstants.Open.Capabilities.MultiprotocolExtensions.AFI_IPV4 &&
                             safi == BgpConstants.Open.Capabilities.MultiprotocolExtensions.SAFI_UNICAST) {
                             bgpSession.remoteInfo().setIpv4Unicast();
@@ -389,6 +400,7 @@ final class BgpOpen {
 
                     case BgpConstants.Open.Capabilities.As4Octet.CODE:
                         // Support for 4-octet AS Number Capabilities (RFC 6793)
+                        /* 拓展AS属性，AS号由2字节拓展到4字节 */
                         if (capabLen != BgpConstants.Open.Capabilities.As4Octet.LENGTH) {
                             // ERROR: 4-octet AS Number Capability Length Error
                             String errorMsg = "4-octet AS Number Capability Length Error";
@@ -412,6 +424,7 @@ final class BgpOpen {
 
                     default:
                         // Unknown Capability: ignore it
+                        /* 按照RFC规定，未知属性/不支持属性直接忽略 */
                         log.debug("BGP RX OPEN Capability Code = {} Length = {}",
                                   capabCode, capabLen);
                         message.readBytes(capabLen);
