@@ -73,6 +73,7 @@ final class BgpKeepalive {
                   bgpSession.remoteInfo().address());
 
         // Start the Session Timeout timer
+        /* 收到保活消息后，重新启动会话超时时钟 */
         bgpSession.restartSessionTimeoutTimer(ctx);
     }
 
@@ -88,6 +89,7 @@ final class BgpKeepalive {
         //
         // Prepare the KEEPALIVE message payload: nothing to do
         //
+        /* 生成保活消息体 */
         return BgpMessage.prepareBgpMessage(BgpConstants.BGP_TYPE_KEEPALIVE,
                                             message);
     }
