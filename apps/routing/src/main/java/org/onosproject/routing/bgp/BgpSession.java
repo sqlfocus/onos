@@ -64,7 +64,7 @@ public class BgpSession extends SimpleChannelHandler {
     private volatile Timeout keepaliveTimeout;  // Periodic KEEPALIVE
     private volatile Timeout sessionTimeout;    // Session timeout
 
-    // BGP RIB-IN routing entries from this peer
+    // BGP RIB-IN routing entries from this peer，记录BGP对等体宣告的路由信息(最终的结果，过滤后剩余的可达信息)
     private ConcurrentMap<Ip4Prefix, BgpRouteEntry> bgpRibIn4 =
         new ConcurrentHashMap<>();
     private ConcurrentMap<Ip6Prefix, BgpRouteEntry> bgpRibIn6 =

@@ -56,7 +56,7 @@ final class BgpUpdate {
     static void processBgpUpdate(BgpSession bgpSession,
                                  ChannelHandlerContext ctx,
                                  ChannelBuffer message) {
-        DecodedBgpRoutes decodedBgpRoutes = new DecodedBgpRoutes();
+        DecodedBgpRoutes decodedBgpRoutes = new DecodedBgpRoutes();     /* 存储解析的建议性路由信息（包括可达+不可达） */
 
         int minLength =
             BgpConstants.BGP_UPDATE_MIN_LENGTH - BgpConstants.BGP_HEADER_LENGTH;
@@ -87,6 +87,7 @@ final class BgpUpdate {
         //
         // Parse the Withdrawn Routes
         //
+        /* 解析不可达路径信息，并加入内部类保存起来，以备后续操作 */
         int withdrawnRoutesLength = message.readUnsignedShort();
         if (withdrawnRoutesLength > message.readableBytes()) {
             // ERROR: Malformed Attribute List
@@ -117,6 +118,7 @@ final class BgpUpdate {
         //
         // Parse the Path Attributes
         //
+        /* 解析路径可达信息 */
         try {
             parsePathAttributes(bgpSession, ctx, message, decodedBgpRoutes);
         } catch (BgpMessage.BgpParseException e) {
@@ -129,6 +131,7 @@ final class BgpUpdate {
         //
         // Update the BGP RIB-IN
         //
+        /* 更新BGP的RIB-IN数据库，即BGP对等体信息库 */
         for (Ip4Prefix ip4Prefix :
                  decodedBgpRoutes.deletedUnicastRoutes4.keySet()) {
             bgpSession.removeBgpRoute(ip4Prefix);
@@ -152,6 +155,7 @@ final class BgpUpdate {
         //
         // Push the updates to the BGP Merged RIB
         //
+        /* 通过路由服务更新路由表 */
         BgpRouteSelector bgpRouteSelector =
             bgpSession.getBgpSessionManager().getBgpRouteSelector();
         bgpRouteSelector.routeUpdates(
@@ -218,6 +222,7 @@ final class BgpUpdate {
         //
         // Parse the Path Attributes
         //
+        /* 遍历路径属性 */
         int pathAttributeEnd = message.readerIndex() + pathAttributeLength;
         while (message.readerIndex() < pathAttributeEnd) {
             int attrFlags = message.readUnsignedByte();
@@ -229,13 +234,13 @@ final class BgpUpdate {
             }
             int attrTypeCode = message.readUnsignedByte();
 
-            // The Attribute Flags
+            // The Attribute Flags，参考rfc4271 p18
             boolean optionalBit =       ((0x80 & attrFlags) != 0);
             boolean transitiveBit =     ((0x40 & attrFlags) != 0);
             boolean partialBit =        ((0x20 & attrFlags) != 0);
             boolean extendedLengthBit = ((0x10 & attrFlags) != 0);
 
-            // The Attribute Length
+            // The Attribute Length，如果设定属性长度扩展标识，则属性长度占据两个字节；否则占据1字节
             int attrLen = 0;
             int attrLenOctets = 1;
             if (extendedLengthBit) {
@@ -259,13 +264,14 @@ final class BgpUpdate {
                 throw new BgpMessage.BgpParseException(errorMsg);
             }
 
-            // Verify the Attribute Flags
+            // Verify the Attribute Flags，检查属性设定是否合法
             verifyBgpUpdateAttributeFlags(bgpSession, ctx, attrTypeCode,
                                           attrLen, attrFlags, message);
 
             //
             // Extract the Attribute Value based on the Attribute Type Code
             //
+            /* 根据属性类型，提取属性值 */
             switch (attrTypeCode) {
 
             case BgpConstants.Update.Origin.TYPE:
@@ -371,6 +377,7 @@ final class BgpUpdate {
         //
         // Parse the NLRI (Network Layer Reachability Information)
         //
+        /* 解析最后的字段，NLRI，Network Layer Reachability Information */
         int nlriLength = message.readableBytes();
         try {
             Collection<Ip4Prefix> addedPrefixes4 =
@@ -394,6 +401,7 @@ final class BgpUpdate {
         //
         // Generate the deleted routes
         //
+        /* 提取的可达/不可达路由信息放置在本类对应的数组中 */
         for (MpNlri mpNlri : mpNlriUnreachList) {
             BgpRouteEntry bgpRouteEntry;
 
@@ -419,6 +427,7 @@ final class BgpUpdate {
         //
         // Generate the added routes
         //
+        /* 生成要添加的可达路由信息 */
         mpNlriReachList.add(legacyNlri);
         for (MpNlri mpNlri : mpNlriReachList) {
             BgpRouteEntry bgpRouteEntry;
@@ -1236,7 +1245,7 @@ final class BgpUpdate {
         int dataEnd = message.readerIndex() + totalLength;
         while (message.readerIndex() < dataEnd) {
             int prefixBitlen = message.readUnsignedByte();
-            int prefixBytelen = (prefixBitlen + 7) / 8;     // Round-up
+            int prefixBytelen = (prefixBitlen + 7) / 8;     /* RFC4271要求8bit对齐，Round-up */
             if (message.readerIndex() + prefixBytelen > dataEnd) {
                 String errorMsg = "Malformed Network Prefixes";
                 throw new BgpMessage.BgpParseException(errorMsg);
@@ -1693,6 +1702,7 @@ final class BgpUpdate {
 
     /**
      * Helper class for storing decoded BGP routing information.
+     * 内部嵌套类存储解码的可达性路由消息 + 非可达性路由消息
      */
     private static final class DecodedBgpRoutes {
         private final Map<Ip4Prefix, BgpRouteEntry> addedUnicastRoutes4 =

@@ -51,6 +51,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Route store based on in-memory storage.
+ *
+ * 基于内存的路由存储
  */
 @Service
 @Component

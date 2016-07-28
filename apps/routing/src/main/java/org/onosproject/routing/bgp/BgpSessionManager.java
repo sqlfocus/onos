@@ -73,6 +73,7 @@ public class BgpSessionManager implements BgpInfoService {
             new ConcurrentHashMap<>();
     private Ip4Address myBgpId;        // Same BGP ID for all peers
 
+    /* 管理从BGP对等体接收到的BGP路由信息 */
     private BgpRouteSelector bgpRouteSelector = new BgpRouteSelector(this);
     private ConcurrentMap<Ip4Prefix, BgpRouteEntry> bgpRoutes4 =
             new ConcurrentHashMap<>();
@@ -302,6 +303,7 @@ public class BgpSessionManager implements BgpInfoService {
      * @param withdraws routes to withdraw
      */
     void withdraw(Collection<Route> withdraws) {
+        /* 调用路由服务实现路由更新功能 */
         routeService.withdraw(withdraws);
     }
 

@@ -26,6 +26,8 @@ import java.util.LinkedList;
 
 /**
  * Class to receive and process the BGP routes from each BGP Session/Peer.
+ *
+ * 处理从BGP对等体接收的BGP路由
  */
 class BgpRouteSelector {
     private static final Logger log =
@@ -73,6 +75,7 @@ class BgpRouteSelector {
             convertRouteUpdateToRoute(routeUpdate, updates, withdraws);
         }
 
+        /* 更新路由表 */
         bgpSessionManager.withdraw(withdraws);
         bgpSessionManager.update(updates);
     }
