@@ -1,0 +1,118 @@
+#+TITLE: SDNIP模块儿简介
+#+AUTHOR: sqlfocus
+
+本文档简要介绍ONOS的sdnip模块儿，以加深对BGP协议的理解，也从开源的角度理解
+BGP在整个SDN框架中的作用；希望后续能够为引流相关的程序设计提供素材！
+
+* 简介
+SDN-IP是ONOS上的一个应用程序，允许软件定义网络使用标准的边界网关协议（BGP）连
+接到外部网络。从BGP角度看，SDN网络表现为单一的自治系统（AS），其行为与任何传统
+的AS一样，基于AS的SDN-IP应用提供BGP和ONOS之间的集成整合机制，在协议层SDN-IP的
+行为作为一个有规则的BGP发言人；从ONOS的角度来看，它只是使用其服务，在SDN数据平
+面安装和更新相应的转发状态的应用程序。
+
+*** 备注
+   - 目前，SDNIP仅支持iBGP邻居关系
+   - 端口号默认2000, 不支持标准端口179(因为不能以root权限运行）
+   - 仅支持BGP-4
+   - 仅支持被动连接的方式
+   - 以第一个连接的AS号做为所有iBGP邻居关系的AS号
+
+*** 参考
+  - [[智能云 - PPT - BGP协议概述.pptx]] 
+  - [[智能云 - SDN - ONOS.vsdx]]
+  - [[资料 - 记录 - MININET使用全纪录.docx]]
+  - [[https://wiki.onosproject.org/display/ONOS/SDN-IP][SDNIP架构介绍]]
+  - [[https://github.com/sdnds-tw/SDN-IP-Example-VM][SDNIP实验示例]]
+
+* 程序流程
+sdnip应用代码入口文件，sdnIp.java；具体的代码注释已经上传到[[https://github.com/sqlfocus/onos][github]]， 此文档
+仅列出具体的程序脉络，以便后续走读。
+
+*** SDNIP模块儿初始化流程
+  #+BEGIN_EXAMPLE
+  -sdnIp::activate()                              sdnIp.java
+     -BgpSessionManager::activate()               管理iBGP邻居关系
+        -start()
+           -new NioServerSocketChannelFactory()      netty框架的socket
+           -new BgpSession()                         管理bgp会话
+           -new BgpFrameDecoder()                    bgp协议处理
+     -PeerConnectivityManager::start()            管理BGP邻居的链路，意图
+        -addListener()                               监听配置、接口变化
+        -setUpConnectivity()                         读取配置文件，打通链路
+           -NetworkConfigService::getConfig()
+           -buildSpeakerIntents()
+              -IntentSynchronizationService::submit()
+  #+END_EXAMPLE
+
+*** BGP协议解析流程
+  #+BEGIN_EXAMPLE
+  -BgpFrameDecoder::decode()
+     -如果会话关闭，则丢弃报文
+     -报文长度检测
+     -处理BGP报文头
+        -处理marker
+        -处理报文长度
+        -处理报文类型字段
+     -根据类型分流处理
+        -BgpOpen::processBgpOpen()                      OPEN消息
+        -BgpUpdate::processBgpUpdate()                  UPDATE消息
+        -BgpNotification::processBgpNotification()      NOTIFICATION消息
+        -BgpKeepalive::processBgpKeepalive()            KEEPALIVE消息
+     -错误信息处理
+        -BgpNotification::prepareBgpNotification()
+  #+END_EXAMPLE
+
+*** OPEN消息处理流程 
+  #+BEGIN_EXAMPLE
+  -BgpOpen::processBgpOpen()
+     -报文长度检测
+     -BGP版本号检测
+     -BgpSession::remoteInfo().setBgpVersion()          保存远端BGP版本
+     -BgpSession::remoteInfo().setAsNumber()            保存远端的AS号
+     -BgpSession::localInfo().setAsNumber()             设置本地的AS号
+     -BgpSession.remoteInfo().setHoldtime()             保存hold time
+     -BgpSession.localInfo().setHoldtime()
+     -BgpSession.remoteInfo().setBgpId()                保存BGP ID
+     -parseOptionalParameters()                         解析可选参数部分
+     -prepareBgpOpen()                                  回应BGP OPEN消息
+        -BgpMessage.prepareBgpMessage()
+     -BgpKeepalive.prepareBgpKeepalive()                发送KEEPALIVE消息
+        -BgpMessage.prepareBgpMessage()
+     -BgpSession.restartKeepaliveTimer()                启动保活时钟
+        -Timer.newTimeout()
+     -BgpSession.restartSessionTimeoutTimer()           启动超时时钟
+        -Timer.newTimeout()
+  #+END_EXAMPLE
+
+*** UPDATE消息处理流程 
+  #+BEGIN_EXAMPLE
+  -BgpUpdate::processBgpUpdate()
+     -parsePackedIp4Prefixes()                          解析不可达路径信息
+     -parsePathAttributes()                             解析路径可达信息
+     -BgpSession.removeBgpRoute()                       更新RIB-IN数据库
+     -BgpSession.addBgpRoute()
+     -BgpRouteSelector.routeUpdates()                   更新本地网络路由表
+        -BgpSessionManager.withdraw()
+           -RouteAdminService.withdraw()
+        -BgpSessionManager.update()
+           -RouteAdminService.update()
+     -bgpSession.restartSessionTimeoutTimer()           重置会话超时时钟
+  #+END_EXAMPLE
+
+*** NOTIFICATION消息处理流程 
+  #+BEGIN_EXAMPLE
+  -BgpNotification::processBgpNotification()
+     -报文长度检测
+     -bgpSession.restartSessionTimeoutTimer()           重置会话超时时钟
+        -Timer.newTimeout()
+  #+END_EXAMPLE
+
+*** KEEPALIVE消息处理流程 
+  #+BEGIN_EXAMPLE
+  -BgpKeepalive::processBgpKeepalive()
+     -bgpSession.restartSessionTimeoutTimer()           重置会话超时时钟
+  #+END_EXAMPLE
+
+
+
