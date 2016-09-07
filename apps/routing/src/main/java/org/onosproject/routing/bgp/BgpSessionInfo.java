@@ -27,8 +27,8 @@ import java.net.SocketAddress;
  * the remote BGP peer.
  */
 public class BgpSessionInfo {
-    private SocketAddress address;              // IP addr/port
-    private Ip4Address ip4Address;              // IPv4 address
+    private SocketAddress address;              // 建立BGP对等关系的地址信息，建立连接时初始化；IP addr/port
+    private Ip4Address ip4Address;              // 同上，IPv4 address
     private int bgpVersion;                     // BGP版本号，<TAKE CARE!!!>目前仅支持BGP4，1 octet
     /* <TAKE CARE!!!>as号是否赋值了???解析头部时已经赋值，不过直接利用的远端AS号，并没有读取配置文件
      * <TODO>这预示着目前ONOS只能建立iBGP对等关系??? */

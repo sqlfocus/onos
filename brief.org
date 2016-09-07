@@ -1,0 +1,30 @@
+#+TITLE: onos简介
+#+AUTHOR: sqlfocus
+
+本系列文档摘录摘录onos代码实现，以期对onos整体业务流程有更深入的理解；与此同时，
+也希望借此对java语言有基本的认识！
+
+* 简介
+现如今，SDN大行其道，尤其在数据中心和云计算领域；从整体上看，SDN分为三大部分
+实现，一是控制器，二是交换机，三是它们之间交互的协议。
+
+ONOS做为主流的SDN控制器，由各大电信运营商提出，以期对整个网络有更强大的控制
+能力，并在稳定性、可靠性、灵活性、性能等方面灌注了大量的精力；这些使得它区别
+于其他控制器，如ODL、RYU、FLOODLIGHT等。
+
+*** 参考
+   - [[http://onosproject.org/][官网]]
+   - [[https://wiki.onosproject.org/display/ONOS/Wiki+Home][wiki]]
+   - [[资料 - 记录 - ONOS使用全纪录.docx]]
+   - [[智能云 - SDN - ONOS.vsdx]]
+
+* 进一步阅读
+   - [[onos_sdnip.org][SDNIP模块儿]]
+
+
+
+
+
+
+
+
